@@ -4,29 +4,42 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:   # để có nút "Run workflow" trong Actions
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout source
-      uses: actions/checkout@v3
+      - name: Checkout source
+        uses: actions/checkout@v4
 
-    - name: Copy theme to server via SCP
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: 34.87.106.23
-        username: duy
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "themes/Vian-main/*"
-        target: "/var/www/vian.click/wp-content/themes/Vian-main"
+      - name: Check SSH key secret exists
+        run: |
+          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "❌ SSH_PRIVATE_KEY is EMPTY"; exit 1;
+          else
+            echo "✅ SSH_PRIVATE_KEY is PRESENT";
+          fi
 
-    - name: Restart Apache
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: 34.87.106.23
-        username: duy
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          sudo systemctl restart apache2
+      - name: Copy theme to server via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 34.87.106.23                 # nên chuyển sang secrets sau khi chạy ổn
+          username: duy
+          port: 22                           # nếu khác thì đổi
+          key: ${{ secrets.SSH_PRIVATE_KEY }}# private key trong Secrets (không phải .pub)
+          source: "wp-content/themes/vian-main/*"
+          target: "/var/www/vian.click/wp-content/themes/vian-main"
+          overwrite: true                    # ghi đè
+          strip_components: 0
+
+      - name: Restart Apache
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 34.87.106.23
+          username: duy
+          port: 22
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo systemctl restart apache2
