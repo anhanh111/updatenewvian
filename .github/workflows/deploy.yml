@@ -8,15 +8,21 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # environment: production   # bật nếu bạn dùng Environment secrets
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Check required secrets
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST:        ${{ secrets.SSH_HOST }}
+          SSH_USERNAME:    ${{ secrets.SSH_USERNAME }}
+          SSH_PORT:        ${{ secrets.SSH_PORT }}
         run: |
           for v in SSH_PRIVATE_KEY SSH_HOST SSH_USERNAME SSH_PORT; do
-            test -n "${{ secrets[$v] }}" 2>/dev/null || { echo "❌ $v is EMPTY"; exit 1; }
+            if [ -z "${!v}" ]; then
+              echo "❌ $v is EMPTY"; exit 1;
+            fi
           done
           echo "✅ all required secrets are present"
 
