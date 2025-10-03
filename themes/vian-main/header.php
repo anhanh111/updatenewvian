@@ -4,6 +4,23 @@
 <head>
     <meta charset="<?php bloginfo('charset'); ?>">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Resource Hints: chỉnh theo site bạn dùng -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <!-- Nếu ảnh/asset ở CDN riêng: -->
+    <!-- <link rel="preconnect" href="https://cdn.vian.click" crossorigin> -->
+
+    <?php
+  // Preload ảnh LCP (hero) cho trang chủ. Đổi đường dẫn ảnh thật của bạn.
+  if ( is_front_page() ) :
+      $hero = get_theme_file_uri('assets/img/hero-1440.webp'); // ảnh lớn
+      $hero768 = get_theme_file_uri('assets/img/hero-768.webp'); // ảnh nhỏ
+  ?>
+    <link rel="preload" as="image" href="<?php echo esc_url($hero); ?>"
+        imagesrcset="<?php echo esc_url($hero768); ?> 768w, <?php echo esc_url($hero); ?> 1440w" imagesizes="100vw">
+    <?php endif; ?>
+
     <?php wp_head(); ?>
 </head>
 
@@ -18,29 +35,44 @@
                 <div class="col-6 col-md-2">
                     <a class="site-logo d-inline-flex align-items-center" href="<?php echo esc_url(home_url('/')); ?>"
                         aria-label="<?php bloginfo('name'); ?>">
-                        <?php if (has_custom_logo()) {
-              the_custom_logo();
+                        <?php
+          if (has_custom_logo()) {
+            // thêm width/height tránh CLS (nếu có thể lấy từ attachment)
+            $custom_logo_id = get_theme_mod('custom_logo');
+            $logo = wp_get_attachment_image_src($custom_logo_id, 'full');
+            if ($logo) {
+              printf(
+                '<img src="%1$s" width="%2$d" height="%3$d" class="custom-logo" alt="%4$s" loading="eager" decoding="async">',
+                esc_url($logo[0]),
+                (int) $logo[1],
+                (int) $logo[2],
+                esc_attr(get_bloginfo('name'))
+              );
             } else {
-              echo '<span class="vian-logo-text fw-bold">' . esc_html(get_bloginfo('name')) . '</span>';
-            } ?>
+              the_custom_logo();
+            }
+          } else {
+            echo '<span class="vian-logo-text fw-bold">' . esc_html(get_bloginfo('name')) . '</span>';
+          }
+          ?>
                     </a>
                 </div>
+
                 <!-- MENU -->
                 <nav class="main-nav" aria-label="<?php esc_attr_e('Primary', 'vian'); ?>">
                     <?php
-          if (has_nav_menu('main_menu')) {
-            wp_nav_menu([
-              'theme_location' => 'main_menu',
-              'container'      => false,
-              'menu_class'     => 'nav-list',   // trùng với CSS bạn đang dùng
-              'fallback_cb'    => false,
-              'depth'          => 2,
-            ]);
-          } else {
-            // Gợi ý nếu chưa gán vị trí
-            echo '<ul class="nav-list"><li><a href="' . esc_url(admin_url('nav-menus.php')) . '">Thêm menu…</a></li></ul>';
-          }
-          ?>
+        if (has_nav_menu('main_menu')) {
+          wp_nav_menu([
+            'theme_location' => 'main_menu',
+            'container'      => false,
+            'menu_class'     => 'nav-list',
+            'fallback_cb'    => false,
+            'depth'          => 2,
+          ]);
+        } else {
+          echo '<ul class="nav-list"><li><a href="' . esc_url(admin_url('nav-menus.php')) . '">Thêm menu…</a></li></ul>';
+        }
+        ?>
                 </nav>
 
                 <!-- Search + Language + Burger -->
@@ -61,7 +93,8 @@
                         <?php endif; ?>
                     </div>
 
-                    <button class="vian-burger d-inline-flex d-md-none ms-1" aria-label="Menu" aria-expanded="false">
+                    <button class="vian-burger d-inline-flex d-md-none ms-1" aria-label="Menu" aria-expanded="false"
+                        aria-controls="primary-menu">
                         <span></span><span></span><span></span>
                     </button>
                 </div>
@@ -69,4 +102,5 @@
             </div>
         </div>
     </header>
+
     <div class="nav-overlay" hidden></div>
