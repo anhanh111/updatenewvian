@@ -2,54 +2,43 @@ name: Deploy to vian.click
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # environment: production   # bật nếu bạn dùng Environment secrets
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Show repo tree (debug source path)
+      - name: Check required secrets
         run: |
-          pwd
-          ls -la
-          ls -la wp-content || true
-          ls -la wp-content/themes || true
+          for v in SSH_PRIVATE_KEY SSH_HOST SSH_USERNAME SSH_PORT; do
+            test -n "${{ secrets[$v] }}" 2>/dev/null || { echo "❌ $v is EMPTY"; exit 1; }
+          done
+          echo "✅ all required secrets are present"
 
-      - name: Check SSH key secret exists
-        run: |
-          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
-            echo "❌ SSH_PRIVATE_KEY is EMPTY"; exit 1;
-          else
-            echo "✅ SSH_PRIVATE_KEY is PRESENT";
-          fi
-
-      # B1: copy tạm vào home của user (luôn có quyền ghi)
       - name: Copy theme to server via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.SSH_HOST }}          # tạo secrets: SSH_HOST, SSH_USERNAME, SSH_PORT
+          host:     ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
-          port: ${{ secrets.SSH_PORT }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}    # private key, không phải .pub
-          source: "wp-content/themes/vian-main/*"
-          target: "/home/duy/deploy_theme/vian-main"
+          port:     ${{ secrets.SSH_PORT }}
+          key:      ${{ secrets.SSH_PRIVATE_KEY }}
+          source:   "wp-content/themes/vian-main/*"
+          target:   "/home/duy/deploy_theme/vian-main"
           overwrite: true
           debug: true
 
-      # B2: rsync bằng sudo vào thư mục web + restart dịch vụ (tránh lỗi quyền)
       - name: Rsync into webroot & restart Apache
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.SSH_HOST }}
+          host:     ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
-          port: ${{ secrets.SSH_PORT }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port:     ${{ secrets.SSH_PORT }}
+          key:      ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             sudo mkdir -p /var/www/vian.click/wp-content/themes/vian-main
             sudo rsync -a --delete /home/duy/deploy_theme/vian-main/ /var/www/vian.click/wp-content/themes/vian-main/
