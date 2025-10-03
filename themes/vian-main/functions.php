@@ -20,7 +20,7 @@ add_action('after_setup_theme', function () {
 
 /* ==== Enqueue CSS/JS (1 chỗ duy nhất) ==== */
 add_action('wp_enqueue_scripts', function () {
-  // Fonts (Be Vietnam Pro + Oswald cho đúng style) + Bootstrap
+  // Fonts (Be Vietnam Pro + Oswald) + Bootstrap
   wp_enqueue_style(
     'vian-google-fonts',
     'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Oswald:wght@400;500;700;800&display=swap',
@@ -264,3 +264,61 @@ add_filter('acf/prepare_field/key=field_about_left_content', function ($field) {
   $field['delay']        = 0;
   return $field;
 });
+
+/* ============================================================
+ *  PERF: defer JS, async CSS, resource hints, lazy images, cleanup
+ * ============================================================ */
+
+/** Preconnect tới Google Fonts để giảm handshake */
+add_filter('wp_resource_hints', function($hints, $relation){
+  if ($relation === 'preconnect') {
+    $hints[] = ['href' => 'https://fonts.gstatic.com', 'crossorigin' => true];
+    $hints[] = 'https://fonts.googleapis.com';
+  }
+  return $hints;
+}, 10, 2);
+
+/** Defer các script KHÔNG critical (giữ jQuery nếu plugin cần) */
+add_filter('script_loader_tag', function($tag, $handle, $src){
+  // các handle bạn đang enqueue ở trên
+  $defer = ['bootstrap-js','swiper','vian-header','vian-main'];
+  if (in_array($handle, $defer, true)) {
+    return '<script src="'.esc_url($src).'" defer></script>';
+  }
+  return $tag;
+}, 10, 3);
+
+/** Async/preload cho CSS phụ (tránh chặn FCP) */
+add_filter('style_loader_tag', function($html, $handle, $href, $media){
+  // CSS không cần ngay màn đầu: swiper, footer
+  $async_css = ['swiper','vian-footer'];
+  if (in_array($handle, $async_css, true)) {
+    $pre = "<link rel='preload' as='style' href='".esc_url($href)."' onload=\"this.onload=null;this.rel='stylesheet'\">";
+    $ns  = "<noscript><link rel='stylesheet' href='".esc_url($href)."'></noscript>";
+    return $pre.$ns;
+  }
+  return $html;
+}, 10, 4);
+
+/** Lazy + decoding cho ảnh */
+add_filter('wp_get_attachment_image_attributes', function($attr){
+  $attr['decoding'] = 'async';
+  if (!isset($attr['loading'])) $attr['loading'] = 'lazy';
+  return $attr;
+});
+
+/** Dọn asset thừa theo trang (ví dụ) */
+add_action('wp_enqueue_scripts', function(){
+  if (is_front_page()) {
+    // nếu không dùng Contact Form 7 ở trang chủ
+    wp_dequeue_style('contact-form-7');
+    wp_dequeue_script('contact-form-7');
+  }
+}, 100);
+
+/** Tắt emoji frontend để giảm request nhỏ */
+remove_action('wp_head', 'print_emoji_detection_script', 7);
+remove_action('wp_print_styles', 'print_emoji_styles');
+
+/** Tách CSS core block theo block để nhẹ hơn */
+add_filter('should_load_separate_core_block_assets', '__return_true');
