@@ -20,11 +20,16 @@ jobs:
           SSH_PORT:        ${{ secrets.SSH_PORT }}
         run: |
           for v in SSH_PRIVATE_KEY SSH_HOST SSH_USERNAME SSH_PORT; do
-            if [ -z "${!v}" ]; then
-              echo "❌ $v is EMPTY"; exit 1;
-            fi
+            if [ -z "${!v}" ]; then echo "❌ $v is EMPTY"; exit 1; fi
           done
           echo "✅ all required secrets are present"
+
+      - name: Show repo tree (debug)
+        run: |
+          pwd
+          ls -la
+          ls -la wp-content || true
+          ls -la wp-content/themes || true
 
       - name: Copy theme to server via SCP
         uses: appleboy/scp-action@v0.1.7
@@ -44,8 +49,4 @@ jobs:
           host:     ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           port:     ${{ secrets.SSH_PORT }}
-          key:      ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            sudo mkdir -p /var/www/vian.click/wp-content/themes/vian-main
-            sudo rsync -a --delete /home/duy/deploy_theme/vian-main/ /var/www/vian.click/wp-content/themes/vian-main/
-            sudo systemctl restart apache2
+          key:      ${{ se
