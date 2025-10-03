@@ -1,23 +1,21 @@
 <?php get_header(); ?>
 
 <main class="home-page">
-    <section class="hero" aria-label="Hero">
-        <?php
-    // Truyền tham số cho template để set fetchpriority='high' cho ảnh LCP
-    get_template_part('template-parts/hero-slider', null, ['fetchpriority' => 'high']);
-    ?>
+    <section class="hero">
+        <?php get_template_part('template-parts/hero-slider'); ?>
     </section>
 
-    <section class="section-about" aria-label="Giới thiệu">
+    <section class="section-about">
         <?php get_template_part('template-parts/section-about'); ?>
     </section>
 
-    <section class="section-food" aria-label="Món ăn">
+    <section class="section-food'">
         <?php get_template_part('template-parts/section-food'); ?>
-    </section>
 
-    <section class="section-space" aria-label="Không gian">
+    </section>
+    <section class="section-space'">
         <?php get_template_part('template-parts/section-space'); ?>
+
     </section>
 </main>
 
