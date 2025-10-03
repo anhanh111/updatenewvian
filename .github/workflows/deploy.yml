@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:   # để có nút "Run workflow" trong Actions
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -14,6 +14,13 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Show repo tree (debug source path)
+        run: |
+          pwd
+          ls -la
+          ls -la wp-content || true
+          ls -la wp-content/themes || true
+
       - name: Check SSH key secret exists
         run: |
           if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
@@ -22,24 +29,28 @@ jobs:
             echo "✅ SSH_PRIVATE_KEY is PRESENT";
           fi
 
+      # B1: copy tạm vào home của user (luôn có quyền ghi)
       - name: Copy theme to server via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: 34.87.106.23                 # nên chuyển sang secrets sau khi chạy ổn
-          username: duy
-          port: 22                           # nếu khác thì đổi
-          key: ${{ secrets.SSH_PRIVATE_KEY }}# private key trong Secrets (không phải .pub)
+          host: ${{ secrets.SSH_HOST }}          # tạo secrets: SSH_HOST, SSH_USERNAME, SSH_PORT
+          username: ${{ secrets.SSH_USERNAME }}
+          port: ${{ secrets.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}    # private key, không phải .pub
           source: "wp-content/themes/vian-main/*"
-          target: "/var/www/vian.click/wp-content/themes/vian-main"
-          overwrite: true                    # ghi đè
-          strip_components: 0
+          target: "/home/duy/deploy_theme/vian-main"
+          overwrite: true
+          debug: true
 
-      - name: Restart Apache
+      # B2: rsync bằng sudo vào thư mục web + restart dịch vụ (tránh lỗi quyền)
+      - name: Rsync into webroot & restart Apache
         uses: appleboy/ssh-action@v1
         with:
-          host: 34.87.106.23
-          username: duy
-          port: 22
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          port: ${{ secrets.SSH_PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            sudo mkdir -p /var/www/vian.click/wp-content/themes/vian-main
+            sudo rsync -a --delete /home/duy/deploy_theme/vian-main/ /var/www/vian.click/wp-content/themes/vian-main/
             sudo systemctl restart apache2
